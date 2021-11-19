@@ -1,0 +1,228 @@
+to export-network
+  file-open "glasgow_net.csv"
+  ask households [
+    ask both-ends [;
+      file-type (word who ",")
+    ]
+    file-print (word ltype ",household" )
+  ]
+  ask friendships [
+    ask both-ends [file-type (word who ",")]
+    file-print (word mean-age ",friendship")
+  ] 
+  ask relations [
+    ask both-ends [file-type (word who ",")]
+    file-print ",relation"
+  ]
+  file-close
+end
+
+to import-network
+  ask turtles [
+    set friends []
+    set relatives []
+    set hh []
+  ]
+  
+  foreach csv:from-file "glasgow_net.csv" [lnk ->
+    let orig item 0 lnk
+    let dest item 1 lnk
+    ;let attr item 2 lnk
+    ifelse item 3 lnk = "friendship" [
+      ask turtle orig [set friends lput (turtle dest) friends]
+      ask turtle dest [set friends lput (turtle orig) friends]
+    ]
+    [ifelse item 3 lnk = "relation" 
+      [
+        ask turtle orig [set relatives lput turtle dest relatives]
+        ask turtle dest [set relatives lput turtle orig relatives]
+      ]
+      [
+        ask turtle orig [set hh lput turtle dest hh]
+        ask turtle dest [set hh lput turtle orig hh]
+      ]
+    ]
+  ] 
+  ask turtles [
+    set friends turtle-set friends
+    set relatives turtle-set relatives
+    set hh turtle-set hh
+  ]
+end
+
+
+;; ==========================================================
+;;               SOCIAL NETWORK GENERATION
+;; ==========================================================
+
+to create-hh
+  create-marriages
+  create-cohabiting
+  attach-children
+end
+
+to attach-children 
+  let mamme turtles with [status != 0 and sex = "F"]
+  ask turtles with [
+    age < 28 and
+    status = 0
+  ]
+  [
+    let age-interval-min age + 22
+    let age-interval-max age + 37
+    let thekid self
+    
+    let m mamme with [age <= age-interval-max and age >= age-interval-min]
+    
+    ask min-one-of m [count my-households]
+    [
+      ask household-neighbors [create-household-with thekid [set ltype 1]]
+      create-household-with thekid [set ltype 1]
+      if count my-households = 5 [set mamme other mamme]
+    ]
+  ]
+  output-print "Done attaching children"
+end
+
+to create-marriages
+  let m turtles with [sex = "M" and status = 1]
+  let f turtles with [sex = "F" and status = 1]
+  ask m [
+    let partner min-one-of f [abs (age - [age] of myself)]
+    create-household-with partner [set ltype 0]
+    ask partner [set f other f]
+  ]
+  output-print "Done creating marriages"
+end
+  
+to create-cohabiting
+  let m turtles with [age >= 28 and status = 0 and sex = "M"]
+  let f turtles with [age >= 28 and status = 0 and sex = "F"]
+  ask f [
+    let partner min-one-of m [abs (age - [age] of myself)]
+    create-household-with partner [set ltype 0]
+    ask partner [set m other m]
+  ]
+  output-print "Done creating cohabitations"
+end
+
+to create-relations
+  if count my-relations = 0 [
+    let granpa self
+    let age-interval-max age - 20
+    let age-interval-min age - 37
+    let howmanyrels round random-normal 2 0.8
+    let candidates turtles with [
+      age <= age-interval-max and age >= age-interval-min and count my-relations <= 2 and not household-neighbor? granpa
+    ]
+    repeat howmanyrels [
+      let candidate one-of candidates
+      if candidate != nobody [
+        ask candidate [
+          create-relation-with granpa
+          ask household-neighbors [create-relation-with granpa]
+        ]
+        ask household-neighbors [create-relation-with candidate]
+        ;ask relation-neighbors [create-relation-with candidate] 
+      ]
+    ]
+  ]
+end
+
+to create-schools
+  foreach remove-duplicates [age] of schoolkids [a ->
+    let thesekids schoolkids with [age = a]
+    ask thesekids [set myclass 0]
+    ifelse count thesekids > 30 [
+      let howManyClasses ceiling (count thesekids / 30)
+      let kidsperclass ceiling (count thesekids / howManyClasses)
+      let ctr 1
+      while [ctr <= howManyClasses] [
+        let thisclass up-to-n-of kidsperclass thesekids with [myclass = 0]
+        ask thisclass [set myclass (word a "-" ctr)]
+        set ctr ctr + 1
+      ]
+    ]
+    [ask thesekids [set myclass (word a "-" 0)]]
+  ]
+  set school table:group-agents schoolkids [myclass]
+end
+
+to make-initial-links
+  let initial-links-per-age-group 100
+  foreach (list [15 19][20 25][26 36][37 49][50 65][66 79][80 103]) [a-g ->
+    let theseguys turtles with [age >= item 0 a-g and age <= item 1 a-g]
+    repeat initial-links-per-age-group [
+      ask one-of theseguys [
+        create-friendship-with one-of other theseguys [
+          if show-layout [set color green]
+          set mean-age mean [age] of both-ends
+        ]
+      ]
+    ]
+  ]
+end
+
+to create-friendships2
+  let linked adults with [count my-friendships > 0]
+  ask adults [
+    let goodfriends ifelse-value age < 25 
+      [other linked with [abs (age - [age] of myself) <= 5]]
+    [other linked with [abs (age - [age] of myself) <= 12]]
+    repeat 5 + random 10 [
+      ifelse (age >= 25 and random 100 < 15) 
+      [create-friendship-with one-of linked]
+      [create-friendship-with one-of goodfriends]
+    ]
+    set linked (turtle-set linked self)
+  ]
+  output-print (word timer "DONE CREATING FRIENDSHIPS!!!!!")
+end
+
+
+to create-friendships
+  make-initial-links
+  ;; Under 14s don't have friends.
+  ask adults [
+    let allinks friendships with [not member? myself both-ends]
+    let goodlinks ifelse-value age < 25 
+    [allinks with [abs ([age] of myself - mean-age) <= 5]]
+    [allinks with [abs ([age] of myself - mean-age) <= 12]]   
+    repeat 5 + random 10 [
+      let initialset goodlinks
+      ;; 15% chance of having a friend of a very different age
+      if age >= 25 and random 100 < 15 [set initialset allinks]
+      create-friendship-with (find-partner initialset) [set mean-age mean [age] of both-ends] 
+    ]
+  ]
+  output-print (word timer "DONE CREATING FRIENDSHIPS!!!!!")
+end
+
+to remove-excess
+  ask turtles with [count my-friendships > 350][
+    ask n-of (count my-friendships - 350) my-friendships [die]
+  ]
+end
+
+;to remove-excess
+;  ask turtles with [count friends > 350] [
+;    let too-popular who
+;    let to-remove []
+;    let excess n-of (count friends - 350) friends
+;    ask excess [
+;      set friends friends with [who != too-popular]
+;      set to-remove lput who to-remove
+;    ]
+;    set friends friends with [not member? who to-remove]
+;  ]
+;end
+
+;; This code is the heart of the "preferential attachment" mechanism. 
+;; We exploit the asyncronous nature of NetLogo and link agents to other agents who already have links
+;; We skew the mechanism a bit to allow for friendships being built 
+;; within age classes as much as possible.
+
+to-report find-partner [initialnet]
+  ;report [min-one-of both-ends [count my-friendships]] of one-of initialnet 
+  report one-of [both-ends] of one-of initialnet
+end
