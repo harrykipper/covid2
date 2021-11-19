@@ -1233,7 +1233,7 @@ OUTPUT
 10
 1025
 265
-14
+16
 
 SLIDER
 5
@@ -1251,10 +1251,10 @@ initially-infected
 HORIZONTAL
 
 PLOT
-1040
-300
-1380
-495
+1045
+535
+1385
+730
 Infections per agent
 # agents infected
 # agents
@@ -1424,10 +1424,10 @@ Tests
 1
 
 PLOT
-960
-760
-1315
-975
+905
+980
+1260
+1195
 Age distribution
 NIL
 NIL
@@ -1651,10 +1651,10 @@ k0
 12
 
 PLOT
-1040
-500
-1381
-730
+965
+745
+1306
+975
 Infection distribution (log-log)
 NIL
 NIL
@@ -1831,10 +1831,10 @@ PENS
 "New" 1.0 0 -14070903 true "" "plot count turtles with [infected = 4] / count turtles with [infected > 0]"
 
 TEXTBOX
-5
-180
-90
-200
+10
+175
+95
+195
 Vaccination
 14
 0.0
@@ -2004,13 +2004,13 @@ CHOOSER
 Delta_variant
 Delta_variant
 true false "incipient"
-1
+0
 
 MONITOR
 1225
-250
+255
 1275
-295
+300
 Transmission
 transEff
 2
@@ -2019,9 +2019,9 @@ transEff
 
 MONITOR
 1275
-250
+255
 1325
-295
+300
 Symptom
 symptEff
 2
@@ -2030,9 +2030,9 @@ symptEff
 
 MONITOR
 1325
-250
+255
 1382
-295
+300
 Severe
 severeEFF
 2
@@ -2048,6 +2048,26 @@ Vaccine efficacy ========
 12
 0.0
 1
+
+PLOT
+1045
+305
+1380
+530
+Vaccine efficacy
+NIL
+NIL
+12.0
+200.0
+45.0
+100.0
+false
+true
+"" ""
+PENS
+"Transmission" 1.0 0 -16777216 true "" "plot transEff * 100"
+"Symptomatic" 1.0 0 -11221820 true "" "plot symptEff * 100"
+"Severe" 1.0 0 -2674135 true "" "plot severeEff * 100"
 
 @#$#@#$#@
 @#$#@#$#@

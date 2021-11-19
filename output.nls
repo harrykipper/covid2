@@ -46,7 +46,8 @@ end
 
 
 to calculate-vaccine-efficacy
-  let vaxedt wantvax with [vaxed > 1 and days-since-dose <= (immunityLasts * 30 - 30)]
+                                     ;; Uncomment this bit if we want to ignore immunity waning when calculating efficacy
+  let vaxedt wantvax with [vaxed > 1]; and days-since-dose <= (immunityLasts * 30 - 30)]
   let unvaxed turtles with [age >= 16 and vaxed = 0]
   set transEff 1 - ((count vaxedt with [infected > 0] / count vaxedt) / (count unvaxed with [infected > 0] / count unvaxed))
   set symptEff 1 - ((count vaxedt with [symptomatic?] / count vaxedt) / (count unvaxed with [symptomatic?] / count unvaxed))

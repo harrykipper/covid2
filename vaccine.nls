@@ -44,7 +44,7 @@ end
 to-report getVaccinatedRiskSymptoms 
   report (ifelse-value
     vaxed = 1 [0.65]
-    vaxed > 1 [1 - (0.60 - immunityWaning)]
+    vaxed > 1 [1 - (0.65 - immunityWaning)]
     [1]  ; unvaccinated
   )
 end
@@ -52,7 +52,7 @@ end
 to-report getVaccinatedRiskSevere
   report (ifelse-value
     vaxed = 1 [0.65]
-    vaxed > 1 [1 - (0.70 - immunityWaning)]
+    vaxed > 1 [1 - (0.80 - immunityWaning)]
     [1]  ; unvaccinated
   )
 end
@@ -60,7 +60,7 @@ end
 to-report immunityWaning
   ;; Vaccine-induced immunity starts waning 1 month prior of it completely disappearing 
   let waning days-since-dose - ((immunityLasts * 30) - 30)
-  report ifelse-value waning > 0 [waning * 0.015][0]
+  report ifelse-value waning > 0 [waning * 0.01][0]
 end
 
 ;; Does reducing the interval between doses reduce efficacy? We assume it doesn't

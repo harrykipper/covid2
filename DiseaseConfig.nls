@@ -94,8 +94,8 @@ end
 to-report getMutationInfectivity [m]
   report (ifelse-value 
     m = 4 [infectivityVariation]
-    m = 3 [1.6]  ; delta
-    m = 2 [1.4]  ; kent
+    m = 3 [1.4]  ; delta
+    m = 2 [1.2]  ; kent
     [1]           ; base
   )
 end
