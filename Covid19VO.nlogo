@@ -428,8 +428,13 @@ to go
 
   ask turtles [set tested-today? false]
 
-  ; The contact tracing app removes contacts older than 10 days
-  if contact-tracing [ask tracings with [day < (ticks - 10)][die]]
+  ; The contact tracing app keeps memory of contacts for 10 days
+  if contact-tracing [
+    ask tracings [
+      set day day + 1
+      if day > 10 [die]
+    ]
+  ]
 
   ask turtles with [isolated?] [
     set days-isolated days-isolated + 1
@@ -929,7 +934,7 @@ to infect  ;; turtle procedure
 end
 
 to add-contact [infected-agent]
-  create-tracing-with infected-agent [set day ticks]
+  create-tracing-with infected-agent [set day 0]
 end
 
 to newinfection [spreader origin]
