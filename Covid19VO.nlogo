@@ -108,7 +108,7 @@ turtles-own
   days-since-dose
   symptomatic?         ;; If true, the person is showing symptoms of infection
   severe-symptoms?     ;; If true, the person is showing severe symptoms
-  cured?               ;; If true, the person has lived through an infection. They cannot be re-infected (FOR HOW LONG??? )
+  cured                ;; 0 = never infected, n = variant the agent was infected with
   days-since-cured     ;; for 12 months :-)
 
   isolated?            ;; If true, the person is isolated at home, unable to infect friends and passer-bys.
@@ -176,7 +176,7 @@ tracings-own [day]
 ;; ==========================================================================
 
 to setup
-  if new-strain and not useful-run [stop]
+  ;if new-strain and not useful-run [stop]
   set rnd ifelse-value use-seed? [-1114321144][new-seed]
   random-seed rnd
   ;show rnd ;if behaviorspace-run-number = 0 [output-print (word  "Random seed: " rnd)]
@@ -246,7 +246,7 @@ to setup
   if behaviorspace-run-number = 0 [
 
     output-print (word count turtles with [infected > 0]  " agents currently infected " "(" precision (100 * count turtles with [infected > 0] / N-people) 2 "%); "
-      count turtles with [cured?] " already recovered from the virus (" precision (100 * count turtles with [cured?] / N-people) 2 "%)")
+      count turtles with [cured > 0] " already recovered from the virus (" precision (100 * count turtles with [cured > 0] / N-people) 2 "%)")
     output-print (word count turtles with [vaxed = 1] " agents with ONE vaccine dose; " count turtles with [vaxed = 2] " with TWO doses")
     let school-state "open"
     let sd-state "people practice social distancing"
@@ -348,9 +348,10 @@ to initialize-infections
     ]
   ]
 
+  let circulating remove-duplicates [infected] of turtles with [infected > 0]
   ask n-of (round (N-people / 100) * initially-cured) turtles with [infected = 0] [
     change-state "recovered"
-    set cured? true
+    set cured one-of circulating
     set susceptible? false
   ]
 end
@@ -377,7 +378,7 @@ to reset-variables
   set myState "susceptible"
   set days-since-cured 0
   set has-app? false
-  set cured? false
+  set cured 0
   set isolated? false
   set hospitalized? false
   set infected 0
@@ -400,7 +401,7 @@ end
 ;=====================================================================================
 
 to go
-  if new-strain and not useful-run [stop]
+  ; if new-strain and not useful-run [stop]
  ; if ticks = 0 and impossible-run [stop]
 
   if table:get populations "infected" = 0 [
@@ -434,6 +435,8 @@ to go
     set days-isolated days-isolated + 1
     if ((symptomatic? = false) and (days-isolated = 10)) [unisolate]
   ]
+
+  ask turtles with [cured > 0] [set days-since-cured days-since-cured + 1]
 
   let symp-covid turtles with [infected > 0 and (not hospitalized?) and
     (member? myState ["symptomatic" "severe"]) and
@@ -489,7 +492,6 @@ end
 to update-vaccinations
   ;; First we administer second doses and boosters. We do it this way to simulate interference between 2nd and 1st doses.
   ;; Uncomment the routine below to administer first doses first.
-
   ask wantvax with [vaxed > 0][    ;; wantvax is the people who are eligible and willing to get vaccinated
     set days-since-dose days-since-dose + 1
     if vaxed = 1 and daily-vaccinations > 0 and days-since-dose >= interval [receiveVax]
@@ -583,9 +585,9 @@ to recover
   set state-counter 0
   change-state "recovered"
   table:put populations "infected" (table:get populations "infected" - 1)
+  set cured infected
   set infected 0
   set symptomatic? false
-  set cured? true
   set days-since-cured 1
   set all-infections lput spreading-to all-infections
 
@@ -659,8 +661,8 @@ to-report should-isolate?
   report false
 end
 
-to-report can-be-infected?
-  if (infected = 0) and (not aware?) and (not cured?) [report true]
+to-report can-be-infected? [variantBeingTransmitted]
+  if (infected = 0) and (not aware?) and (cured < variantBeingTransmitted) [report true]
   report false
 end
 
@@ -742,10 +744,10 @@ to meet-people
             set in_contact true
             ask myself [set nm_contacts nm_contacts + 1]
       ]
-      if (can-be-infected?) and (not isolated?) and in_contact [
+      if (can-be-infected? variantBeingTransmitted) and (not isolated?) and in_contact [
         if has-app? and [has-app?] of spreader [add-contact spreader]
 
-        if (not cured?) and random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * prob-rnd-infection * b)
+        if random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * prob-rnd-infection * b)
         [newinfection spreader "random"]  ; If the worker infects someone, it counts as random
       ]
     ]
@@ -758,10 +760,10 @@ to meet-people
       let variantBeingTransmitted infected
         set chance chance-of-infecting
         ask victim [
-          if can-be-infected? [
+          if can-be-infected? variantBeingTransmitted [
             if has-app? and [has-app?] of spreader [add-contact spreader]
 
-            if (not cured?) and random-float 1 < (chance * prob-rnd-infection * (getVaccinatedRiskOfInfection variantBeingTransmitted) * b) [newinfection spreader "work"] ; If the worker is infected by someone, it's work.
+            if random-float 1 < (chance * prob-rnd-infection * (getVaccinatedRiskOfInfection variantBeingTransmitted) * b) [newinfection spreader "work"] ; If the worker is infected by someone, it's work.
           ]
         ]
     ]
@@ -792,7 +794,7 @@ to infect  ;; turtle procedure
     ;; if the person is isolating the people in the household have a reduced risk to get infected
     if isolated? [set hh-infection-chance hh-infection-chance * 0.7]
 
-    ask hh with [can-be-infected?] [
+    ask hh with [can-be-infected? variantBeingTransmitted] [
       if random-float 1 < (hh-infection-chance * (age-discount * getVariantAge variantBeingTransmitted) * getVaccinatedRiskOfInfection variantBeingTransmitted)
       [newinfection spreader "household"]
     ]
@@ -831,10 +833,10 @@ to infect  ;; turtle procedure
             set in_contact true
             ask myself[set nm_contacts nm_contacts + 1 ]
           ]
-          if can-be-infected? and in_contact [
+          if can-be-infected? variantBeingTransmitted and in_contact [
             ; We don't rely on the app in school. The classrom is quarantined if a pupil is positive
             ;if has-app? and [has-app?] of spreader [add-contact spreader]
-              if (not cured?) and random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * getVaccinatedRiskOfInfection variantBeingTransmitted)
+              if random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * getVaccinatedRiskOfInfection variantBeingTransmitted)
             [newinfection spreader "school"]
           ]
         ]
@@ -849,9 +851,9 @@ to infect  ;; turtle procedure
           if random-float 1 < c [
             set in_contact true
             ask myself[set nm_contacts nm_contacts + 1 ] ]
-          if can-be-infected? and (not isolated?) and (in_contact) [
+          if can-be-infected? variantBeingTransmitted and (not isolated?) and (in_contact) [
           if has-app? and [has-app?] of spreader [add-contact spreader]
-          if (not cured?) and random-float 1 < (chance * b * bsens * (getVaccinatedRiskOfInfection variantBeingTransmitted) )
+          if random-float 1 < (chance * b * bsens * (getVaccinatedRiskOfInfection variantBeingTransmitted) )
             [newinfection spreader "work"]
           ]
         ]
@@ -884,9 +886,9 @@ to infect  ;; turtle procedure
             if random-float 1 < c [
               set in_contact true
             ask myself[set nm_contacts nm_contacts + 1] ]
-            if (not isolated?) and (can-be-infected?) and (in_contact) [
+            if (not isolated?) and (can-be-infected? variantBeingTransmitted) and (in_contact) [
               if has-app? and [has-app?] of spreader [add-contact spreader]
-              if (not cured?) and random-float 1 < ((chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * b * bsens))
+              if random-float 1 < ((chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * b * bsens))
               [newinfection spreader "friends"]]
          ]
         ]
@@ -898,8 +900,8 @@ to infect  ;; turtle procedure
     if count relatives > 0  and (2 / 7) > random-float 1 [
       set nm_contacts nm_contacts + 1
       ask one-of relatives [
-        if can-be-infected? and (not isolated?) [
-          if (not cured?) and random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * b)
+        if can-be-infected? variantBeingTransmitted and (not isolated?) [
+          if random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * b)
           [newinfection spreader "relations"]
         ]
       ]
@@ -915,10 +917,10 @@ to infect  ;; turtle procedure
         if random-float 1 < c [
             set in_contact true
             ask myself[set nm_contacts nm_contacts + 1] ]
-        if (can-be-infected?) and (not isolated?) and in_contact  [
+        if (can-be-infected? variantBeingTransmitted) and (not isolated?) and in_contact  [
           if has-app? and [has-app?] of spreader [add-contact spreader]
 
-          if (not cured?) and random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * prob-rnd-infection * b)
+          if random-float 1 < (chance * (age-discount * getVariantAge variantBeingTransmitted) * (getVaccinatedRiskOfInfection variantBeingTransmitted) * prob-rnd-infection * b)
           [newinfection spreader "random"]
         ]
       ]
@@ -932,6 +934,8 @@ end
 
 to newinfection [spreader origin]
   set infected [infected] of spreader
+  ;;; OMICRON has a lower incubation period. This should be set somewhere else, we put it here ftb
+  if infected = 4 [set t-incubation round random-normal 2 1]
   set state-counter 0
   change-state "incubation"
   table:put populations "infected" (table:get populations "infected" + 1)
@@ -1377,9 +1381,9 @@ Disease Configuration
 
 TEXTBOX
 280
-110
+105
 330
-128
+123
 Runtime
 12
 0.0
@@ -1828,7 +1832,7 @@ PENS
 "Base" 1.0 0 -16777216 true "" "plot count turtles with [infected = 1] / count turtles with [infected > 0]"
 "Alpha" 1.0 0 -7500403 true "" "plot count turtles with [infected = 2] / count turtles with [infected > 0]"
 "Delta" 1.0 0 -2674135 true "" "plot count turtles with [infected = 3] / count turtles with [infected > 0]"
-"New" 1.0 0 -14070903 true "" "plot count turtles with [infected = 4] / count turtles with [infected > 0]"
+"Omicron" 1.0 0 -14070903 true "" "plot count turtles with [infected = 4] / count turtles with [infected > 0]"
 
 TEXTBOX
 10
@@ -1922,7 +1926,7 @@ SWITCH
 68
 new-strain
 new-strain
-1
+0
 1
 -1000
 
@@ -1935,7 +1939,7 @@ aggressiveness
 aggressiveness
 0
 10
-1.0
+0.85
 0.01
 1
 NIL
@@ -1960,7 +1964,7 @@ infectivityVariation
 infectivityVariation
 0
 10
-1.6
+3.0
 0.01
 1
 NIL
@@ -1990,7 +1994,7 @@ riskInfection_2dose
 riskInfection_2dose
 0
 riskInfection_1dose
-0.82
+1.0
 0.01
 1
 NIL
@@ -2068,6 +2072,21 @@ PENS
 "Transmission" 1.0 0 -16777216 true "" "plot transEff * 100"
 "Symptomatic" 1.0 0 -11221820 true "" "plot symptEff * 100"
 "Severe" 1.0 0 -2674135 true "" "plot severeEff * 100"
+
+SLIDER
+1030
+210
+1195
+243
+riskInfection_boosted
+riskInfection_boosted
+0
+1
+0.5
+0.01
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 @#$#@#$#@
@@ -2371,7 +2390,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.1
+NetLogo 6.2.2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

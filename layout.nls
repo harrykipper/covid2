@@ -4,7 +4,7 @@
 ;; white is neither infected nor cured
 
 to assign-color ;; turtle procedure
-  ifelse cured?
+  ifelse cured > 0
     [ set color green ]
       [ ifelse infected > 0
         [set color red ]

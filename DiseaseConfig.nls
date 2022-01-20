@@ -25,11 +25,11 @@ to-report probability-of-showing-symptoms
   ;; If the person is showing symptoms, it'll take 7 more days to recover.
   report (ifelse-value
     age < 10 [0.03]       ;; Children rarely show any symptoms
-    age < 20 [0.28]      ;; young adults
-    age <= 40 [0.58]     ;; Agents between 30 and 40
-    age <= 50 [0.65]    ;; agents between 40 and 50
-    age <= 70 [0.77]     ;; agents between 50 and 70
-    [0.85]              ;; agents above 70
+    age < 20 [0.28]       ;; young adults
+    age <= 40 [0.58]      ;; Agents between 30 and 40
+    age <= 50 [0.65]      ;; agents between 40 and 50
+    age <= 70 [0.77]      ;; agents between 50 and 70
+    [0.85]                ;; agents above 70
   )
 end
 
@@ -37,11 +37,11 @@ to-report probabilityofworsening
   ;; After 10 days with symptoms the agent has the following probability of
   ;; worsening and needing hospital care.
   report (ifelse-value
-    age < 15 [0.02]         ;; 
-    age < 40 [0.06]         ;; agents below age 40 who display symptoms have a 2% chance of ending up in hospital
+    age < 15 [0.02]        
+    age < 40 [0.06]        ;; agents below age 40 who display symptoms have a 2% chance of ending up in hospital
     age <= 50 [0.1]        ;; agents between 40 and 50 ....
     age < 60 [0.14]        ;; agents between 50 and 60
-    age < 70  [0.18]                 ;; over 60
+    age < 70  [0.18]       ;; over 60
     [0.21]
   )
 end

@@ -61,10 +61,10 @@ end
 
 to print-current-summary
   let inf count turtles with [infected > 0]
-  let recovered count turtles with [cured?]
+  let recovered count turtles with [cured > 0]
   let propinf precision (infected / N-people) 3
   let proprec precision (recovered / N-people) 3
-  let proprec2 precision (recovered / (infected + count turtles with [cured?])) 3
+  let proprec2 precision (recovered / (infected + count turtles with [cured > 0])) 3
   output-print (word "Currently infected: " inf " (" precision (propinf * 100) 1 "% of population)" )
   output-print (word "Currently recovered: " recovered " (" precision (proprec * 100) 1 "% of population - " precision (proprec2 * 100) 1 "% of all infected)" )
   output-print (word "Current average R0: " precision rtime 2)

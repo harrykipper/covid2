@@ -28,9 +28,10 @@ to-report getVaccinatedRiskOfInfection [m]  ;; m = mutation being transmitted
     )
   ]
   if m = 4 [
-    report (ifelse-value   
-      ; the new strain (m = 4) infects those with one dose. Full vaccination reduces risk.
-      vaxed > 1 [riskInfection_2dose + immunityWaning][riskInfection_1dose]   
+    report (ifelse-value
+      vaxed = 2 [riskInfection_2dose + immunityWaning]
+      vaxed = 1 [riskInfection_1dose]   
+      vaxed > 2 [riskInfection_boosted + immunityWaning]
     )
   ]
   report (ifelse-value
