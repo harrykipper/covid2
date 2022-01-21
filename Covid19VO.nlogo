@@ -64,7 +64,7 @@ globals
 
   vaccinations         ;; table with initial no. of vaccinated by age by sex
   ;; Interventions
-  lockdown?            ;; If true we are in a state of lockdown
+
   contact-tracing      ;; If true a contact tracing app exists
   app-initalize?       ;; If the app was distributed to agents
   daily-vaccinations
@@ -167,7 +167,7 @@ friendships-own [mean-age]
 households-own [ltype]  ; ltype 0 is a spouse; ltype 1 is offspring/sibling
 wps-own [wp-id wtype]
 
-tracings-own [day]
+tracings-own [day]   ;; links representing the contacts traced by the app
 
 ;; ===========================================================================
 ;;;
@@ -195,7 +195,7 @@ to setup
 
   set have-vaccinations false
   if vaccination-capacity > 0 [set have-vaccinations true]
-  ifelse social-distancing? [setSocialDistancing true][setSocialDistancing false]
+  ifelse social-distancing? [setSocialDistancing "sd"][setSocialDistancing "no"]
 
   set app-initalize? false
 
@@ -262,17 +262,24 @@ to setup
 end
 
 to setSocialDistancing [case]
-  ifelse case = true [
+  (ifelse case = "sd" [ ;; Social distancing
     set b 0.7       ;; reduction factor in probability of infection
     set fq 1        ;; discount in frequency of work/school. Value subtracted from 5 days/week
     set c 0.7       ;; reduction factor in contacts around at work/school/street
     set social-distancing? true
-  ][
-    set b 1
-    set fq 0
-    set c 1
-    set social-distancing? false
-  ]
+    ]
+    case = "ld" [  ; Lockdown
+      set b 0.4
+      set fq 4
+      set c 0.2
+    ]
+    [ ;; No social distancing
+      set b 1
+      set fq 0
+      set c 1
+      set social-distancing? false
+    ]
+  )
 end
 
 to read-wards
@@ -309,7 +316,6 @@ to set-initial-variables
 
   set all-infections []
 
-  set lockdown? false
   set testing-today []
   set testing-tomorrow []
 end
@@ -352,6 +358,7 @@ to initialize-infections
   ask n-of (round (N-people / 100) * initially-cured) turtles with [infected = 0] [
     change-state "recovered"
     set cured one-of circulating
+    set days-since-cured random (immunityLasts * 30)
     set susceptible? false
   ]
 end
@@ -441,7 +448,10 @@ to go
     if ((symptomatic? = false) and (days-isolated = 10)) [unisolate]
   ]
 
-  ask turtles with [cured > 0] [set days-since-cured days-since-cured + 1]
+  ask turtles with [cured > 0] [
+    set days-since-cured days-since-cured + 1
+    if days-since-cured > immunityLasts * 30 [set cured 0]
+  ]
 
   let symp-covid turtles with [infected > 0 and (not hospitalized?) and
     (member? myState ["symptomatic" "severe"]) and
@@ -789,8 +799,8 @@ to infect  ;; turtle procedure
     ]
   ]
 
-  ;; When there's no lockdown, and we are not isolated, we go out and infect other people.
-  if (not isolated?) and (not lockdown?) [
+  ;; When we are not isolated, we go out and infect other people.
+  if (not isolated?) [
 
     ;; Infected agents will infect someone at random. The probability is a fraction of the normal infection-chance
     ;; If both parties have the app a link is created to keep track of the meeting
@@ -807,7 +817,7 @@ to infect  ;; turtle procedure
     if random-passersby != nobody [set nm-passby count random-passersby ]
     set nm_contacts nm_contacts + count hh
     let proportion max-prop-friends-met   ;; Change this and the infection probability if we want more superpreading
-    if  age > 40 [set proportion proportion / 2] ;; older meets less
+    if age > 40 [set proportion proportion / 2] ;; older meets less
 
     ;; The following are schoolkids
     ifelse age > 5 and age < 18 [
@@ -945,7 +955,7 @@ to lockdown
     output-print " ================================ "
     output-print (word "Day " ticks ": Locking down!")
   ]
-  set lockdown? true
+  setSocialDistancing "ld"
   close-schools
 end
 
@@ -954,7 +964,7 @@ to remove-lockdown
     output-print " ================================ "
     output-print (word "Day " ticks ": Removing lockdown!")
   ]
-  set lockdown? false
+  setSocialDistancing "sd"
   reopen-schools
 end
 
