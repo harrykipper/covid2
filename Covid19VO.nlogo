@@ -402,7 +402,7 @@ end
 
 to go
   ; if new-strain and not useful-run [stop]
- ; if ticks = 0 and impossible-run [stop]
+  ; if ticks = 0 and impossible-run [stop]
 
   if table:get populations "infected" = 0 [
     print-final-summary
@@ -473,23 +473,7 @@ to go
 
   ifelse behaviorspace-run-number != 0
   [ save-individual ]
-  [
-    table:remove infections (ticks - 8)
-    if ticks = 7
-      [set double-t 7
-      set cum-infected table:get cumulatives "asymptomatic" + table:get cumulatives "symptomatic" + table:get cumulatives "severe"
-     ]
-    if (ticks > 7)  and (inc-rate >= 2) [
-      print-double-time
-      set double-t ticks
-      set cum-infected table:get cumulatives "asymptomatic" + table:get cumulatives "symptomatic" + table:get cumulatives "severe"
-    ]
-    if show-layout [ask turtles [assign-color]]
-    plot-contacts
-    calculate-r0
-    if ticks > 10 and ticks mod 7 = 0 [calculate-vaccine-efficacy]
-    current-rt
-  ]
+  [ show-plots ]
   tick
 end
 
