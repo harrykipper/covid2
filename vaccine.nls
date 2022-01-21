@@ -32,6 +32,7 @@ to-report getVaccinatedRiskOfInfection [m]  ;; m = mutation being transmitted
       vaxed = 2 [riskInfection_2dose + immunityWaning]
       vaxed = 1 [riskInfection_1dose]   
       vaxed > 2 [riskInfection_boosted + immunityWaning]
+      [1]
     )
   ]
   report (ifelse-value
