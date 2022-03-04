@@ -72,13 +72,13 @@ to attach-children
     let age-interval-max age + 37
     let thekid self
     
-    let m mamme with [age <= age-interval-max and age >= age-interval-min]
+    let m mamme with [age <= age-interval-max and age >= age-interval-min and count my-households <= 5]
     
     ask min-one-of m [count my-households]
     [
       ask household-neighbors [create-household-with thekid [set ltype 1]]
       create-household-with thekid [set ltype 1]
-      if count my-households = 5 [set mamme other mamme]
+      ;if count my-households = 5 [set mamme other mamme]
     ]
   ]
   output-print "Done attaching children"
@@ -88,9 +88,9 @@ to create-marriages
   let m turtles with [sex = "M" and status = 1]
   let f turtles with [sex = "F" and status = 1]
   ask m [
-    let partner min-one-of f [abs (age - [age] of myself)]
+    let partner min-one-of f with [count my-households = 0][abs (age - [age] of myself)]
     create-household-with partner [set ltype 0]
-    ask partner [set f other f]
+    ;ask partner [set f other f]
   ]
   output-print "Done creating marriages"
 end
@@ -99,9 +99,9 @@ to create-cohabiting
   let m turtles with [age >= 28 and status = 0 and sex = "M"]
   let f turtles with [age >= 28 and status = 0 and sex = "F"]
   ask f [
-    let partner min-one-of m [abs (age - [age] of myself)]
+    let partner min-one-of m with [count my-households = 0][abs (age - [age] of myself)]
     create-household-with partner [set ltype 0]
-    ask partner [set m other m]
+    ;ask partner [set m other m]
   ]
   output-print "Done creating cohabitations"
 end

@@ -104,11 +104,12 @@ to-report getVariantAge [m]
   report ifelse-value m = 3 or m = 4 [1.7][1]
 end
 
-to-report getMutationAggressiveness [m]   ; so far the variants are not more aggressive than the base virus
+to-report getMutationAggressiveness [m] 
   report (ifelse-value 
-  m = 3 [1.15]
+  m = 3 [2]
   m = 4 [aggressiveness]
-  [1])
+  [1]
+  )
   
   ;report ifelse-value m = 2 [1][1]
 end

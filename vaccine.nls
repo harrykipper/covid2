@@ -82,27 +82,48 @@ to receiveVax
   set days-since-dose 0                          ; agent variable
 end
 
+;to populate-vaccination-table
+;  ; Source: Scotland vaccination rates by age by sex 9 August 2021
+;  ; https://public.tableau.com/app/profile/phs.covid.19/viz/COVID-19DailyDashboard_15960160643010/Overview
+;  set vaccinations table:make
+;  ;                        age   F-1do F-2do M-1do M-2do
+;  table:put vaccinations [18 29][0.677 0.291 0.609 0.209]
+;  table:put vaccinations [30 39][0.725 0.543 0.693 0.478]
+;  table:put vaccinations [40 49][0.873 0.788 0.895 0.779]
+;  table:put vaccinations [50 54][0.914 0.866 1 0.935]
+;  table:put vaccinations [55 59][0.961 0.922 1 1]
+;  table:put vaccinations [60 64][0.996 0.966 1 1]
+;  table:put vaccinations [65 69][1 0.993 1 1]
+;  table:put vaccinations [70 74][0.976 0.956 0.993 0.968]
+;  table:put vaccinations [75 79][0.967 0.943 0.982 0.955]
+;  table:put vaccinations [80 100][0.91 0.872 0.922 0.888]
+;end
+
 to populate-vaccination-table
-  ; Source: Scotland vaccination rates by age by sex 9 August 2021
+  ; Source: Scotland vaccination rates by age by sex 31 August 2021
   ; https://public.tableau.com/app/profile/phs.covid.19/viz/COVID-19DailyDashboard_15960160643010/Overview
   set vaccinations table:make
-  ;                        age   F-1do F-2do M-1do M-2do
-  table:put vaccinations [18 29][0.677 0.291 0.609 0.209]
-  table:put vaccinations [30 39][0.725 0.543 0.693 0.478]
-  table:put vaccinations [40 49][0.873 0.788 0.895 0.779]
-  table:put vaccinations [50 54][0.914 0.866 1 0.935]
-  table:put vaccinations [55 59][0.961 0.922 1 1]
-  table:put vaccinations [60 64][0.996 0.966 1 1]
-  table:put vaccinations [65 69][1 0.993 1 1]
-  table:put vaccinations [70 74][0.976 0.956 0.993 0.968]
-  table:put vaccinations [75 79][0.967 0.943 0.982 0.955]
-  table:put vaccinations [80 100][0.91 0.872 0.922 0.888]
+  ;                        age   F-1do F-2do F-3do M-1do M-2do M-3do
+  table:put vaccinations [12 15][0.584 0.145 0.007 0.547 0.144 0.006]
+  table:put vaccinations [16 17][0.771 0.418 0.064 0.667 0.344 0.054]
+  table:put vaccinations [18 29][0.758 0.664 0.372 0.682 0.588 0.285]
+  table:put vaccinations [30 39][0.779 0.719 0.456 0.745 0.678 0.397]
+  table:put vaccinations [40 49][0.897 0.852 0.618 0.927 0.867 0.588]
+  table:put vaccinations [50 54][0.916 0.887 0.706 1 0.97 0.747]
+  table:put vaccinations [55 59][0.962 0.939 0.789 1 1 0.855]
+  table:put vaccinations [60 64][1 0.994 0.9 1 1 1]
+  table:put vaccinations [65 69][1 1 0.963 1 1 1]
+  table:put vaccinations [70 74][0.995 0.981 0.922 1 1 0.941]
+  table:put vaccinations [75 79][0.991 0.972 0.894 1 1 0.925]
+  table:put vaccinations [80 100][0.952 0.92 0.807 0.985 0.953 0.843]
 end
 
 to vaccinate-initial-people
   let d 1 
+  let o 1
   if Delta_variant != true [
     set d 0.5    ;; If we don't have the Delta variant yet, we are modelling a past situation, with 50% less vaccinated people.
+    set o 0
   ]
   show (word "Delta is " Delta_variant "; d = " d)
   foreach table:keys vaccinations [k ->
@@ -111,8 +132,10 @@ to vaccinate-initial-people
     let m thesepeople with [sex = "M"]
     let f1 n-of round ((count f * item 0 table:get vaccinations k) * d) f 
     let f2 n-of round ((count f * item 1 table:get vaccinations k) * d) f1
-    let m1 n-of round ((count m * item 2 table:get vaccinations k) * d) m 
-    let m2 n-of round ((count m * item 3 table:get vaccinations k) * d) m1
+    let f3 n-of round ((count f * item 2 table:get vaccinations k) * o) f2
+    let m1 n-of round ((count m * item 3 table:get vaccinations k) * d) m 
+    let m2 n-of round ((count m * item 4 table:get vaccinations k) * d) m1
+    let m3 n-of round ((count m * item 5 table:get vaccinations k) * o) m2
     ;show (word "F: " count f " 1 dose: " count f1 ", 2 doses: " count f2)
     ;show (word "M: " count m " 1 dose: " count m1 ", 2 doses: " count m2)
     ask (turtle-set f1 m1) [
@@ -120,6 +143,13 @@ to vaccinate-initial-people
       set novax false
       set days-since-dose random (dose-interval * 7)
     ]
-    ask (turtle-set f2 m2) [set vaxed 2]
+    ask (turtle-set f2 m2) [
+      set vaxed 2
+      set days-since-dose random 50
+    ]
+    ask (turtle-set f3 m3) [
+      set vaxed 3
+      set days-since-dose random 20
+    ]
   ]
 end

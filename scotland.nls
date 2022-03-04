@@ -141,7 +141,7 @@ to create-relations-sco
         ask candidate [
           create-relation-with granpa
           ask my-households with [ltype != 2][ask other-end [create-relation-with granpa]]
-          set candidates other candidates
+          ;set candidates other candidates
         ]
         ask household-neighbors [create-relation-with candidate]
       ]
@@ -161,28 +161,28 @@ to create-marriages-sco [ngh]
       set two m
     ]
     ask one [
-      let partner min-one-of two [abs (age - [age] of myself)]
+      let partner min-one-of two with [count my-households = 0] [abs (age - [age] of myself)]
       create-household-with partner [set ltype 0]
-      ask partner [set two other two]
+      ;ask partner [set two other two]
     ]
   ]
   ; Same sex couples. Done in a silly way
   let m ppl with [sex = "M" and hhtype = 7]
   let f ppl with [sex = "F" and hhtype = 7]
   repeat count m / 2 [
-    ask one-of m [
-      let partner min-one-of other m [abs (age - [age] of myself)]
+    ask one-of m with [count my-households = 0] [
+      let partner min-one-of other m with [count my-households = 0][abs (age - [age] of myself)]
       create-household-with partner [set ltype 0]
-      set m other m
-      ask partner [set m other m]
+     ; set m other m
+     ; ask partner [set m other m]
     ]
   ]
   repeat count f / 2 [
-    ask one-of f [
-      let partner min-one-of other f [abs (age - [age] of myself)]
+    ask one-of f with [count my-households = 0][
+      let partner min-one-of other f with [count my-households = 0] [abs (age - [age] of myself)]
       create-household-with partner [set ltype 0]
-      set f other f
-      ask partner [set f other f]
+    ;  set f other f
+    ;  ask partner [set f other f]
     ]
   ]
 end
@@ -205,18 +205,18 @@ to attach-children-sco [ngh]
       let age-interval-min age + 17
       let age-interval-max age + 39
       let thekid self
-      let m mamme with [age <= age-interval-max and age >= age-interval-min]
+      let m mamme with [age <= age-interval-max and age >= age-interval-min and count my-households <= maxhh]
       if tp > 10 [set m (turtle-set m papa with [age <= age-interval-max and age >= age-interval-min])]  ;; type 11 and 12 are single parents with children, so m can be either dad or mom
       if any? m [
-        ask min-one-of m [count my-households]
+        ask min-one-of m with [count my-households <= maxhh] [count my-households]
           [
             ask household-neighbors [create-household-with thekid [set ltype 1]]
             create-household-with thekid [set ltype 1]
-            if count my-households = maxhh [
-              ifelse member? self mamme 
-              [set mamme other mamme]
-              [set papa other papa]
-            ]
+;            if count my-households = maxhh [
+;              ifelse member? self mamme 
+;              [set mamme other mamme]
+;              [set papa other papa]
+;            ]
         ]
       ]
     ]

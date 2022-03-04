@@ -234,7 +234,7 @@ to setup
   initialize-infections
   initialise-vaccinations
 
-  set wantvax turtles with [age >= 16 and novax = false]
+  set wantvax turtles with [age >= 12 and novax = false]
   set daily-vaccinations vaccination-capacity ;round (N-People * 0.007)
   set interval (dose-interval * 7) + 2
 
@@ -247,7 +247,7 @@ to setup
 
     output-print (word count turtles with [infected > 0]  " agents currently infected " "(" precision (100 * count turtles with [infected > 0] / N-people) 2 "%); "
       count turtles with [cured > 0] " already recovered from the virus (" precision (100 * count turtles with [cured > 0] / N-people) 2 "%)")
-    output-print (word count turtles with [vaxed = 1] " agents with ONE vaccine dose; " count turtles with [vaxed = 2] " with TWO doses")
+    output-print (word count turtles with [vaxed = 1] " agents with ONE vaccine dose; " count turtles with [vaxed = 2] " with TWO doses; " count turtles with [vaxed = 3] " with booster")
     let school-state "open"
     let sd-state "people practice social distancing"
     if schools-open? = false [set school-state "closed"]
@@ -340,18 +340,14 @@ to initialize-infections
     ;ifelse random-float 1 > 0.25 [set infected 2]
     ;[ifelse random-float 1 > 0.15 [set infected 1][set infected 3]]
 
-    ifelse new-strain [
-      ifelse random-float 1 < 0.15 [set infected 2][
-        ifelse random-float 1 < 0.8 [set infected 3][set infected 4]
-      ]
-    ][
-      if Delta_variant = true ;; 15% Kent 85% Delta
+
+    if Delta_variant = true ;; 15% Kent 85% Delta
       [ifelse random-float 1 < 0.15 [set infected 2][set infected 3]]
-      if Delta_variant = "incipient" ;; 85% Kent 15% Delta
+    if Delta_variant = "incipient" ;; 85% Kent 15% Delta
       [ifelse random-float 1 < 0.15 [set infected 3][set infected 2]]
-      if Delta_variant = false ;; 85% Kent 15% Original
+    if Delta_variant = false ;; 85% Kent 15% Original
       [ifelse random-float 1 < 0.15 [set infected 1][set infected 2]]
-    ]
+
   ]
 
   let circulating remove-duplicates [infected] of turtles with [infected > 0]
@@ -481,6 +477,11 @@ to go
   ;;after the infection between contactas took place during the day, at the "end of the day" agents change states
   ask turtles with [infected > 0][progression-disease]
 
+  ;; The new strain appears after two months
+  if ticks = 60 and new-strain [
+    ask n-of round (table:get populations "infected" / 20) turtles with [infected > 0][set infected 4]
+  ]
+
   ifelse behaviorspace-run-number != 0
   [ save-individual ]
   [ show-plots ]
@@ -602,6 +603,7 @@ to recover
   ]
 
   if isolated? [unisolate]
+  set aware? false
   set nb-recovered (nb-recovered + 1)
 end
 
@@ -989,7 +991,7 @@ to get-tested [origin]
   ;; If someone is found to be positive they:
   ;; 1. Isolate, 2. Their household decides whether to isolate, 3. The notify relatives
   ;; 4. If they use the app, the contacts are notified and have the option of getting tested or isolate.
-  ifelse infected > 0[
+  ifelse infected > 0 [
     set tested-positive tested-positive + 1
     if should-isolate? [isolate]
     set tested-today? true
@@ -1236,7 +1238,7 @@ OUTPUT
 10
 1025
 265
-16
+12
 
 SLIDER
 5
@@ -1785,7 +1787,7 @@ dose-interval
 dose-interval
 4
 12
-8.0
+4.0
 4
 1
 weeks
@@ -1875,7 +1877,7 @@ BUTTON
 842
 298
 Social Dist
-setSocialDistancing true
+setSocialDistancing \"sd\"
 NIL
 1
 T
@@ -1892,7 +1894,7 @@ BUTTON
 967
 298
 End social dist
-setSocialDistancing false
+setSocialDistancing \"no\"
 NIL
 1
 T
@@ -1938,7 +1940,7 @@ aggressiveness
 aggressiveness
 0
 10
-0.85
+1.0
 0.01
 1
 NIL
@@ -1963,7 +1965,7 @@ infectivityVariation
 infectivityVariation
 0
 10
-3.0
+1.9
 0.01
 1
 NIL
@@ -2007,7 +2009,7 @@ CHOOSER
 Delta_variant
 Delta_variant
 true false "incipient"
-0
+1
 
 MONITOR
 1225
@@ -2088,6 +2090,7 @@ NIL
 HORIZONTAL
 
 @#$#@#$#@
+todo: extend vaccinations to 12+
 @#$#@#$#@
 default
 true
