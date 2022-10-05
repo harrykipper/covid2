@@ -37,7 +37,7 @@ globals
   tests-per-day
   tests-performed
   tests-today
-  hospital-beds        ;; Number of places in the hospital (currently unused)
+ ; hospital-beds        ;; Number of places in the hospital (currently unused)
   counters             ;; Table containing information on source of infection e.g household, friends...
   populations          ;;
   cumulatives          ;; table of cumulative disease states
@@ -86,8 +86,8 @@ globals
   place                ;; Table of neighbourhoods and their residents             ;;
   work-place           ;list of work place size
   double-t
-  flu-symp            ;;number of agents with flu-symptomas that will try to get tested for covid19
-  ratio-flu-covid    ;; ration between covid and flu
+  flu-symp            ;; number of agents with the flu that will try to get tested for covid19 thus needlessly depleting tests
+  ratio-flu-covid     ;; ration between covid and flu
 
   tested-positive    ;;number of agents tested as positive
 
@@ -96,15 +96,17 @@ globals
 
 turtles-own
 [
+  intv    ;; strumentale a non perdere troppo tempo per fare la cazzo di rete sociale
+
   sex
   age
-  age-discount
-  gender-discount
+  age-discount         ;; reduction in probability of infection thanks to age
+  gender-discount      ;;                                                 gender
   status               ;; Marital status 0 = single 1 = married 2 = divorced 3 = widowed
-  novax
+  novax                ;; The agent won't accept vaccination
 
-  infected             ;; 0 = not infected; n = infecting variant: 1 = base; 2 = beta; 3 = delta
-  vaxed                ;; 0 = not vaccinated; 1 = first dose; 2 = second dose
+  infected             ;; 0 = not infected; n = infecting variant: 1 = base; 2 = beta; 3 = delta; 4 = new strain
+  vaxed                ;; 0 = not vaccinated; 1 = first dose; 2 = second dose; 3 = booster dose
   days-since-dose
   symptomatic?         ;; If true, the person is showing symptoms of infection
   severe-symptoms?     ;; If true, the person is showing severe symptoms
@@ -145,8 +147,8 @@ turtles-own
   wide-colleagues
   close-colleagues
   myclass              ;; name of the pupil's class
-  my-work              ;;identifier of work site, where  0- is not working
-  my-work-sub          ;;identifier of sub work group
+  my-work              ;; identifier of work site, where  0- is not working
+  my-work-sub          ;; identifier of sub work group
   out-grp              ;; instrumental variable to produce workgroups quickly
 
   office-worker?
@@ -157,17 +159,19 @@ turtles-own
 
   neigh
   ward
-  hhtype
+  hhtype               ;; household type (only used when creating population)
 
   days_cont           ;;days of contacts since being infected
   nm_contacts         ;;number of contacts the agents had
 ]
 
+;; we represent households, friendships and workplaces as typed links between agents
 friendships-own [mean-age]
 households-own [ltype]  ; ltype 0 is a spouse; ltype 1 is offspring/sibling
 wps-own [wp-id wtype]
 
-tracings-own [day]   ;; links representing the contacts traced by the app
+;; we represent contacs traced by the app as links.
+tracings-own [day]
 
 ;; ===========================================================================
 ;;;
@@ -210,7 +214,6 @@ to setup
   [import-network]
   [
     create-hh-sco
-    ask seniors [create-relations]
     create-friendships2
     remove-excess
   ]
@@ -243,6 +246,8 @@ to setup
       [create-workplaces]
 
   set s0 table:get populations "susceptible"
+
+  ;; If we are not running headless we show output and plot stuff
   if behaviorspace-run-number = 0 [
 
     output-print (word count turtles with [infected > 0]  " agents currently infected " "(" precision (100 * count turtles with [infected > 0] / N-people) 2 "%); "
@@ -280,13 +285,6 @@ to setSocialDistancing [case]
       set social-distancing? false
     ]
   )
-end
-
-to read-wards
-  set wardmap table:make
-  foreach csv:from-file "Glasgow_wards_lookup.csv" [w ->
-    table:put wardmap item 0 w item 1 w
-  ]
 end
 
 to set-initial-variables
@@ -468,13 +466,13 @@ to go
     ]
   ]
 
-  ;;crowd workers work 5 days and may infect the customers or be infected by them
+  ;; public-facing workers work 5 days and may infect the customers or be infected by them
   ask crowd-workers with [not isolated? and (not hospitalized?)] [if 5 / 7 > random-float 1 [meet-people]]
 
-  ;;non-symptomatic are can get tested in tests are still available- in case of priorty to  testing symptomatic
+  ;; non-symptomatic can get tested if tests are still available- in case of priorty to  testing symptomatic
   if tests-remaining > 0 and (length testing-today) > 0 [test-people]
 
-  ;;after the infection between contactas took place during the day, at the "end of the day" agents change states
+  ;;after the infection between contacts took place during the day, at the "end of the day" agents change states
   ask turtles with [infected > 0][progression-disease]
 
   ;; The new strain appears after two months
@@ -482,6 +480,7 @@ to go
     ask n-of round (table:get populations "infected" / 20) turtles with [infected > 0][set infected 4]
   ]
 
+  ;; If we're running headless we output CSVs, if not we show stuff in the interface
   ifelse behaviorspace-run-number != 0
   [ save-individual ]
   [ show-plots ]
@@ -491,7 +490,7 @@ end
 ;;;; TODO: Make immunityLasts an individual attribute with a distribution set at the beginning.
 to update-vaccinations
   ;; First we administer second doses and boosters. We do it this way to simulate interference between 2nd and 1st doses.
-  ;; Uncomment the routine below to administer first doses first.
+  ;; Comment this and uncomment the routine below to administer first doses first.
   ask wantvax with [vaxed > 0][    ;; wantvax is the people who are eligible and willing to get vaccinated
     set days-since-dose days-since-dose + 1
     if vaxed = 1 and daily-vaccinations > 0 and days-since-dose >= interval [receiveVax]
@@ -504,8 +503,8 @@ to update-vaccinations
   ]
 end
 
+;; First we administer first doses. wantvax is the people who are eligible and willing to get vaccinated
 ;to update-vaccinations
-;  ;; First we administer first doses. wantvax is the people who are eligible and willing to get vaccinated
 ;  let vaxingtoday wantvax with [vaxed = 0]
 ;  let vaxingnow ifelse-value count vaxingtoday > daily-vaccinations [daily-vaccinations][count vaxingtoday]
 ;  ask max-n-of vaxingnow vaxingtoday [age] [receiveVax]
@@ -721,7 +720,7 @@ end
 ;=====================================================================================
 
 ;; Encounters between 'crowd workers' and the crowd.
-;; There's a chance that the worker will get infected and that he will infect someone.
+;; Here the worker can either get infected or infect someone.
 to meet-people
   let here table:get placecnt neigh
   let nmMeet ((lambda * 3) * item 0 here)  ;;contacts with customer are:lambda % of the people in the neigh
@@ -735,7 +734,8 @@ to meet-people
   let locals other table:get place neigh
   let crowd (turtle-set
     up-to-n-of random-poisson (howmanyrnd ) locals with [ age < 67]
-    up-to-n-of random-poisson (howmanyelder) locals with [age > 67])
+    up-to-n-of random-poisson (howmanyelder) locals with [age > 67]
+  )
   ifelse infected > 0 [
     let variantBeingTransmitted infected
     ;; Here the worker is infecting others
@@ -763,7 +763,6 @@ to meet-people
         ask victim [
           if can-be-infected? variantBeingTransmitted [
             if has-app? and [has-app?] of spreader [add-contact spreader]
-
             if random-float 1 < (chance * prob-rnd-infection * (getVaccinatedRiskOfInfection variantBeingTransmitted) * b) [newinfection spreader "work"] ; If the worker is infected by someone, it's work.
           ]
         ]
@@ -792,6 +791,7 @@ to infect  ;; turtle procedure
   ;; Even if the agent is isolating or there's a lockdown.
   if count hh > 0  [
     let hh-infection-chance chance
+
     ;; if the person is isolating the people in the household have a reduced risk to get infected
     if isolated? [set hh-infection-chance hh-infection-chance * 0.7]
 
@@ -801,9 +801,8 @@ to infect  ;; turtle procedure
     ]
   ]
 
-  ;; When we are not isolated, we go out and infect other people.
+  ;; Other than our family, when we are not isolated, we go out and infect other people
   if (not isolated?) [
-
     ;; Infected agents will infect someone at random. The probability is a fraction of the normal infection-chance
     ;; If both parties have the app a link is created to keep track of the meeting
     let random-passersby nobody
@@ -819,7 +818,7 @@ to infect  ;; turtle procedure
     if random-passersby != nobody [set nm-passby count random-passersby ]
     set nm_contacts nm_contacts + count hh
     let proportion max-prop-friends-met   ;; Change this and the infection probability if we want more superpreading
-    if age > 40 [set proportion proportion / 2] ;; older meets less
+    if age > 40 [set proportion proportion / 2] ;; older people meet less
 
     ;; The following are schoolkids
     ifelse age > 5 and age < 18 [
@@ -827,7 +826,7 @@ to infect  ;; turtle procedure
         ;; Schoolchildren meet their schoolmates every SCHOOLDAY, and can infect them.
         set proportion proportion / 2 ;;school children meet less than younger adults
         let classmates table:get school myclass
-        set classmates classmates  with [isolated? = false]
+        set classmates classmates with [isolated? = false]
         ask n-of ((count classmates * 0.5) ) other classmates [
           let in_contact false
           if random-float 1 < c [
@@ -893,7 +892,6 @@ to infect  ;; turtle procedure
               [newinfection spreader "friends"]]
          ]
         ]
-
       ]
     ]
 
@@ -1238,7 +1236,7 @@ OUTPUT
 10
 1025
 265
-12
+13
 
 SLIDER
 5
@@ -2009,7 +2007,7 @@ CHOOSER
 Delta_variant
 Delta_variant
 true false "incipient"
-1
+2
 
 MONITOR
 1225
@@ -2392,7 +2390,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.2
+NetLogo 6.3.0-beta1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

@@ -1,3 +1,10 @@
+to read-wards
+  set wardmap table:make
+  foreach csv:from-file "Glasgow_wards_lookup.csv" [w ->
+    table:put wardmap item 0 w item 1 w
+  ]
+end
+
 to create-agents-sco
   let scale 5
   foreach csv:from-file "glaHH.csv" [zn ->
@@ -6,7 +13,8 @@ to create-agents-sco
     ;print (word zn " - age " ag)
     while [i < 18] [
      if i != 16 [ 
-        let howmany round (item i zn / scale)
+        ;let howmany round (item i zn / scale)
+        let howmany item i zn
         ; show (word howmany " ppl type " i)
         if howmany > 0 [
           crt howmany [
@@ -29,6 +37,12 @@ to create-agents-sco
   set seniors turtles with [age >= 67]
   set schoolkids turtles with [age > 5 and age < 18]
   set adults turtles with [age > 14]
+  
+  ask adults with [age <= 28][set intv list (age - 5) (age + 5)]
+  ask adults with [age > 28][set intv list (age - 10) (age + 10)]
+  
+  
+  print "Done creating agents"
 end
 
 to read-agents-sco
@@ -124,29 +138,35 @@ to create-hh-sco
     create-student-hh ngh
   ]
   output-print "Done creating marriages, households and attaching children"
-  ask seniors [create-relations-sco]
-  output-print "Done creating relations"
+  ;create-relations-sco
+  ;output-print "Done creating relations"
 end
 
 to create-relations-sco
-  if count my-relations = 0 [
-    let granpa self
-    let age-interval-max age - 20
-    let age-interval-min age - 37
+  let ppl adults with [age >= 21 and age < 67]
+  ask adults with [age > 58 and ((sex = "F") or (sex = "M" and count my-households = 0))] [
     let howmanyrels round random-normal 2 0.8
-    let candidates turtles with [age <= age-interval-max and age >= age-interval-min and count my-relations <= 2 and not household-neighbor? granpa]
-    repeat howmanyrels [
-      let candidate one-of candidates
-      if candidate != nobody [
-        ask candidate [
-          create-relation-with granpa
-          ask my-households with [ltype != 2][ask other-end [create-relation-with granpa]]
-          ;set candidates other candidates
+    if howmanyrels > 0 [
+      let granma self
+      let age-interval-max age - 19
+      let age-interval-min age - 37
+      let adult_children up-to-n-of howmanyrels ppl with [
+        age <= age-interval-max and age >= age-interval-min ;and 
+        ;count relation-neighbors <= 3 ;and 
+        ; not link-neighbor? granma
+      ]
+      ask adult_children [
+        if count relation-neighbors < 4 [
+          create-relation-with granma
+          ask household-neighbors [create-relation-with granma]
+          ;ask my-households with [ltype != 2][ask other-end [create-relation-with granpa]]
+          ask [household-neighbors] of granma [create-relations-with adult_children]
         ]
-        ask household-neighbors [create-relation-with candidate]
       ]
     ]
+    print who
   ]
+  print "Done with the fucking old people"
 end
 
 to create-marriages-sco [ngh]
@@ -185,6 +205,7 @@ to create-marriages-sco [ngh]
     ;  ask partner [set f other f]
     ]
   ]
+  print word "Done creating marriages in ward " ngh
 end
 
 to attach-children-sco [ngh]
@@ -221,6 +242,7 @@ to attach-children-sco [ngh]
       ]
     ]
   ]
+  print word "Done attaching children in ward " ngh
 end
 
 to create-student-hh [ngh]

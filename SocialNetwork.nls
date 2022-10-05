@@ -1,5 +1,5 @@
 to export-network
-  file-open "glasgow_net.csv"
+  file-open "glasgow_net_full.csv"
   ask households [
     ask both-ends [;
       file-type (word who ",")
@@ -149,26 +149,28 @@ to create-schools
 end
 
 to make-initial-links
-  let initial-links-per-age-group 100
+  let initial-links-per-age-group 500
   foreach (list [15 19][20 25][26 36][37 49][50 65][66 79][80 103]) [a-g ->
     let theseguys turtles with [age >= item 0 a-g and age <= item 1 a-g]
     repeat initial-links-per-age-group [
       ask one-of theseguys [
-        create-friendship-with one-of other theseguys [
-          if show-layout [set color green]
+        carefully [create-friendship-with one-of theseguys [
+          ;if show-layout [set color green]
           set mean-age mean [age] of both-ends
-        ]
+          ]
+        ][print error-message]
       ]
     ]
   ]
+  print "Done making initial links"
 end
 
-to create-friendships2
+to create-friendships2   
   let linked adults with [count my-friendships > 0]
   ask adults [
     let goodfriends ifelse-value age < 25 
-      [other linked with [abs (age - [age] of myself) <= 5]]
-    [other linked with [abs (age - [age] of myself) <= 12]]
+    [linked with [abs (age - [age] of myself) <= 5]]
+    [linked with [abs (age - [age] of myself) <= 12]]
     repeat 5 + random 10 [
       ifelse (age >= 25 and random 100 < 15) 
       [create-friendship-with one-of linked]
@@ -176,9 +178,64 @@ to create-friendships2
     ]
     set linked (turtle-set linked self)
   ]
-  output-print (word timer "DONE CREATING FRIENDSHIPS!!!!!")
+  output-print word timer "DONE CREATING FRIENDSHIPS!!!!!"
 end
 
+to create-friendships3
+  make-initial-links
+  let linked adults with [count my-friendships > 0]
+  ask adults [ 
+    let howmany 5 + random 10
+    ifelse age < 28
+    [create-friendships-with n-of howmany linked with [abs (age - [age] of myself) <= 5]]
+    [
+      let close linked with [abs (age - [age] of myself) <= 10]
+      repeat howmany [
+        ifelse random 100 < 15 
+        [create-friendship-with one-of linked]
+        [create-friendship-with one-of close]
+      ]
+    ]
+    set linked (turtle-set linked self)
+  ]
+end
+
+to create-friendships3.5
+  make-initial-links
+  reset-timer
+  let linked adults with [count my-friendships > 0]
+  ask adults [ 
+    let howmany 5 + random 10
+    let intervallo intv
+    create-friendships-with n-of howmany other linked with [count my-friendships < 280 and age >= item 0 intervallo and age <= item 1 intervallo]
+    if random 100 < 5 [create-friendship-with one-of linked]
+    set linked (turtle-set linked self)
+  ]
+end
+
+to create-friendships4
+  make-initial-links  
+  reset-timer
+  let fava 0
+  ask adults [
+    let newfriend self
+    let howmany 5 + random 10
+    let intervallo intv
+    ask n-of howmany friendships with [mean-age >= item 0 intervallo and mean-age <= item 1 intervallo]
+        [carefully [ask one-of both-ends [create-friendship-with newfriend]][]]
+    
+    if random 100 < 10 [ask one-of friendships [ask one-of both-ends [carefully [create-friendship-with newfriend][]]]]
+    set fava fava + 1
+    if fava = 50000 [
+      show timer
+      stop
+    ]
+  ]
+  print "Done creating the Social Network!"
+end
+
+
+    
 
 to create-friendships
   make-initial-links
@@ -187,7 +244,7 @@ to create-friendships
     let allinks friendships with [not member? myself both-ends]
     let goodlinks ifelse-value age < 25 
     [allinks with [abs ([age] of myself - mean-age) <= 5]]
-    [allinks with [abs ([age] of myself - mean-age) <= 12]]   
+    [allinks with [abs ([age] of myself - mean-age) <= 12]]
     repeat 5 + random 10 [
       let initialset goodlinks
       ;; 15% chance of having a friend of a very different age
